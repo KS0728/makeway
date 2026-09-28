@@ -60,7 +60,7 @@ const CENTER = [12.9716, 77.5946]; // change to your city
 
 const COLORS = {fire:'#d62828', ambulance:'#0077b6'};
 const ICONS = {fire:'🚒', ambulance:'🚑'};
-const map = L.map('map').setView(CENTER, 14);
+   const map = L.map('map',{dragging:true,scrollWheelZoom:true,doubleClickZoom:true,touchZoom:true}).setView(CENTER, 12);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
 
 const layers = {}; // id -> {marker, corridor, line, data}
