@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#14213d">
+<title>Make Way – Driver</title>
+<style>
+  :root{--ink:#14213d;--fire:#d62828;--amb:#0077b6;--ok:#2a9d8f;--line:#dde3ea}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);background:#f4f6f9}
+  .wrap{max-width:460px;margin:0 auto;padding:16px}
+  h1{font-size:20px;margin:4px 0 16px}
+  label{display:block;font-size:14px;font-weight:600;margin:12px 0 4px}
+  input,select{width:100%;padding:14px;font-size:16px;border:1px solid var(--line);border-radius:8px;background:#fff}
+  button{width:100%;padding:16px;font-size:18px;font-weight:700;border:0;border-radius:10px;color:#fff;background:var(--ink);margin-top:16px}
+  button.stop{background:var(--fire)} button.sec{background:#fff;color:var(--ink);border:1px solid var(--ink);font-size:16px;padding:12px;margin-top:8px}
+  button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #ffb703}
+  .card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;margin-top:16px}
+  .dot{display:inline-block;width:12px;height:12px;border-radius:50%;background:#aaa;margin-right:8px}
+  .live .dot{background:var(--ok);animation:b 1s infinite alternate}
+  @keyframes b{to{opacity:.3}}
+  #msg{font-size:14px;margin-top:8px;min-height:20px;color:#5b6777}
+  [hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Make Way driver app</h1>
+
+  <section id="setup">
+    <label for="name">Vehicle name</label>
+    <input id="name" placeholder="e.g. Ambulance 108-24" autocomplete="off">
+    <label for="type">Vehicle type</label>
+    <select id="type"><option value="ambulance">Ambulance</option><option value="fire">Fire engine</option></select>
+    <label for="key">Access key (given by your control room)</label>
+    <input id="key" type="password" autocomplete="off">
+    <button id="start">Start sharing location</button>
+  </section>
+
+  <section id="live" hidden>
+    <div class="card" id="statusCard"><span class="dot"></span><b id="state">Starting…</b>
+      <div id="coords" style="font-size:13px;margin-top:6px;color:#5b6777"></div></div>
+
+    <label for="dest">Destination (address or place)</label>
+    <input id="dest" placeholder="Hospital or incident address">
+    <button class="sec" id="route">Show my route to the public</button>
+    <div id="msg" role="status"></div>
+
+    <button class="stop" id="stop">Stop sharing</button>
+  </section>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const store = { get:k=>{try{return localStorage.getItem(k)}catch(e){return null}}, set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}} };
+
+let watchId=null, wake=null, last=null, route=null, sentRoute=true, lastSend=0, sending=false;
+const id = store.get('vid') || (store.set('vid', 'v'+Math.random().toString(36).slice(2,10)), store.get('vid')) || 'v'+Date.now();
+$('name').value = store.get('name')||''; $('type').value = store.get('type')||'ambulance'; $('key').value = store.get('key')||'';
+
+function msg(t){ $('msg').textContent=t; }
+
+async function api(path, payload){
+  const r = await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','x-key':$('key').value},body:JSON.stringify(payload)});
+  if(!r.ok) throw new Error((await r.json().catch(()=>({}))).error || r.status);
+}
+
+async function push(){
+  if(!last || sending) return;
+  const now=Date.now(); if(now-lastSend<2000) return;
+  sending=true; lastSend=now;
+  const p={id,type:$('type').value,name:$('name').value.trim()||id,lat:last.lat,lng:last.lng};
+  if(!sentRoute && route) p.route=route;
+  try{ await api('/api/update',p); if(route) sentRoute=true;
+    $('state').textContent='Sharing live location'; $('statusCard').classList.add('live');
+  }catch(e){ $('state').textContent = String(e.message).includes('bad key') ? 'Wrong access key' : 'No connection, retrying…'; $('statusCard').classList.remove('live'); }
+  sending=false;
+}
+
+async function start(){
+  if(!navigator.geolocation){ alert('This device does not support location.'); return; }
+  if(!$('key').value){ alert('Enter the access key.'); return; }
+  ['name','type','key'].forEach(k=>store.set(k,$(k).value));
+  $('setup').hidden=true; $('live').hidden=false; $('state').textContent='Waiting for GPS…';
+  watchId=navigator.geolocation.watchPosition(pos=>{
+    last={lat:pos.coords.latitude,lng:pos.coords.longitude};
+    $('coords').textContent=`${last.lat.toFixed(5)}, ${last.lng.toFixed(5)} (±${Math.round(pos.coords.accuracy)} m)`;
+    push();
+  },err=>{ $('state').textContent = err.code===1 ? 'Location permission denied. Enable it in browser settings.' : 'GPS unavailable'; },
+  {enableHighAccuracy:true,maximumAge:1000,timeout:15000});
+  setInterval(push,3000); // heartbeat even when stationary
+  try{ wake=await navigator.wakeLock.request('screen'); }catch(e){}
+}
+
+async function stop(){
+  if(watchId!==null) navigator.geolocation.clearWatch(watchId);
+  try{ await api('/api/stop',{id}); }catch(e){}
+  if(wake) try{wake.release()}catch(e){}
+  location.reload();
+}
+
+async function setRoute(){
+  if(!last){ msg('Waiting for GPS first.'); return; }
+  const q=$('dest').value.trim(); if(!q){ msg('Type a destination.'); return; }
+  msg('Finding route…');
+  try{
+    const g=await (await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(q))).json();
+    if(!g[0]) { msg('Destination not found. Try a fuller address.'); return; }
+    const u=`https://router.project-osrm.org/route/v1/driving/${last.lng},${last.lat};${g[0].lon},${g[0].lat}?overview=full&geometries=geojson`;
+    const j=await (await fetch(u)).json();
+    route=j.routes[0].geometry.coordinates.map(c=>[c[1],c[0]]); sentRoute=false; lastSend=0;
+    msg('Route is now visible to the public.'); push();
+  }catch(e){ msg('Could not get the route. Check your internet.'); }
+}
+
+$('start').onclick=start; $('stop').onclick=stop; $('route').onclick=setRoute;
+</script>
+</body>
+</html>
