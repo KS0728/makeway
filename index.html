@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Make Way – Emergency Corridor</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<style>
+:root{--bg:#070b14;--pn:#0e1526;--p2:#131d33;--bd:#1f2b47;--tx:#e8edf7;--mu:#8b97b1;--fire:#ef4444;--amb:#0ea5e9;--warn:#fbbf24;--ok:#2dd4bf}
+*{box-sizing:border-box}[hidden]{display:none!important}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+body{display:flex;flex-direction:column}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--warn)}
+header{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#0a1020;border-bottom:1px solid var(--bd);flex-wrap:wrap}
+.logo{font-weight:900;font-size:21px}.logo i{font-style:normal;color:var(--warn)}
+nav{display:flex;gap:6px;flex:1;flex-wrap:wrap}
+nav button{background:none;border:1px solid transparent;border-radius:8px;padding:8px 12px;color:var(--mu);font-weight:600}
+nav button.on{background:var(--p2);border-color:var(--bd);color:var(--tx)}
+.chip{font-size:12px;padding:5px 10px;border-radius:99px;border:1px solid var(--bd);background:var(--pn);display:inline-flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:#64748b}.on-dot{background:var(--ok);animation:pl 1.2s infinite alternate}
+@keyframes pl{to{opacity:.3}}
+.btn{border:0;border-radius:8px;padding:10px 14px;font-weight:700;background:var(--amb);color:#fff}
+.btn.red{background:var(--fire)}.btn.ghost{background:var(--p2);border:1px solid var(--bd)}.btn.ok{background:var(--ok);color:#042}
+.card{background:var(--pn);border:1px solid var(--bd);border-radius:12px;padding:14px}
+.page{flex:1;overflow:auto;padding:20px}.wrap{max-width:1000px;margin:0 auto}
+h1{font-size:clamp(30px,6vw,54px);line-height:1.05;margin:22px 0 10px;text-align:center;font-weight:900}
+.g1{color:var(--fire)}.g2{color:var(--warn)}.g3{color:var(--ok)}.g4{color:var(--amb)}
+.sub{text-align:center;color:var(--mu);max-width:640px;margin:0 auto 18px}
+.row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:12px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:14px 0}
+.stat b{display:block;font-size:26px}.stat span,.mu{color:var(--mu);font-size:12px}
+.lnk{cursor:pointer;text-align:left}.lnk:hover{border-color:var(--amb)}.lnk h3{margin:6px 0}
+#stage{flex:1;display:flex;min-height:0}
+.side{width:360px;overflow:auto;border-right:1px solid var(--bd);background:#0a1020;padding:12px;display:flex;flex-direction:column;gap:12px}
+#map{flex:1;background:#0b1220}
+.leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.7)}
+h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--amb);margin:0 0 8px}
+input,select{width:100%;padding:11px;font-size:15px;background:var(--bg);color:var(--tx);border:1px solid var(--bd);border-radius:8px;margin-bottom:8px}
+label{display:block;font-size:13px;font-weight:600;margin:8px 0 4px}
+.veh{display:flex;gap:10px;align-items:center;padding:10px;border:1px solid var(--bd);border-left:4px solid;border-radius:10px;background:var(--pn);margin-bottom:8px;width:100%;text-align:left}
+.veh.fire{border-left-color:var(--fire)}.veh.ambulance{border-left-color:var(--amb)}
+.veh .ic{font-size:24px}.veh div{flex:1;min-width:0}.veh b{display:block}
+.tag{font-size:10px;font-weight:800;padding:2px 7px;border-radius:5px;background:var(--amb);color:#fff}.tag.fire{background:var(--fire)}
+.alt{padding:10px;border:1px solid var(--bd);border-radius:10px;margin-bottom:8px;background:var(--pn);cursor:pointer;width:100%;text-align:left;display:block}
+.alt.sel{border-color:var(--ok);box-shadow:0 0 0 1px var(--ok)}
+.bd{font-size:10px;font-weight:800;padding:2px 7px;border-radius:5px}.bd.clear{background:var(--ok);color:#042}.bd.bad{background:var(--fire)}
+#pmsg{font-size:13px;min-height:18px}.ok-t{color:var(--ok)}.dv{color:var(--warn);font-weight:700}.bad-t{color:var(--fire);font-weight:700}
+.chips{display:flex;gap:6px;margin-bottom:8px}.chips button{flex:1;padding:8px;border-radius:8px;border:1px solid var(--bd);background:var(--pn)}.chips button.on{background:var(--amb);border-color:var(--amb);color:#fff}
+#ev div{font-size:12px;padding:6px 8px;border-left:3px solid var(--amb);background:var(--pn);margin-bottom:6px;border-radius:0 6px 6px 0}
+#ev .w{border-color:var(--warn)}#ev .r{border-color:var(--fire)}#ev .g{border-color:var(--ok)}
+.pin{font-size:26px;text-align:center;filter:drop-shadow(0 1px 3px #000)}
+.pulse{position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px;border-radius:50%;animation:pu 1.4s infinite}
+.fire .pulse{background:var(--fire)}.ambulance .pulse{background:var(--amb)}
+@keyframes pu{from{transform:scale(1);opacity:.7}to{transform:scale(4);opacity:0}}
+#modal{position:fixed;inset:0;background:#000c;display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px}
+#modal .box{max-width:420px;width:100%;background:var(--pn);border:2px solid var(--fire);border-radius:16px;padding:22px;text-align:center}
+#modal h3{font-size:28px;margin:8px 0;line-height:1.1}
+.m3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}.m3 div{background:var(--bg);border-radius:8px;padding:8px}.m3 b{display:block;font-size:20px;color:var(--warn)}
+.act{background:#3a1420;border:1px solid var(--fire);border-radius:10px;padding:12px;margin:12px 0;font-weight:800;font-size:19px}
+#bn{background:var(--warn);color:#111;font-weight:800;padding:10px 14px}
+@media(max-width:800px){#stage{flex-direction:column-reverse}.side{width:100%;max-height:52%;border-right:0;border-top:1px solid var(--bd)}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+</style></head><body>
+<header>
+  <div class="logo">MAKE<i>WAY</i></div>
+  <nav aria-label="Main">
+    <button data-v="home">Home</button><button data-v="map">Commuter Map</button>
+    <button data-v="driver">Driver Portal</button><button data-v="control">Control Room</button>
+  </nav>
+  <span class="chip"><span class="dot" id="ldot"></span><span id="status">Connecting…</span></span>
+  <button class="btn red" id="test">Test alert</button>
+</header>
+<div id="bn" hidden role="alert"></div>
+
+<section id="v-home" class="page"><div class="wrap">
+  <h1>Every Second Counts.<br><span class="g1">Make </span><span class="g2">Way </span><span class="g3">for </span><span class="g4">Life.</span></h1>
+  <p class="sub">Live locations and routes of ambulances and fire engines, so everyone on the road knows when to give way, and can plan trips that avoid them.</p>
+  <div class="row"><button class="btn" data-go="map">Open live map</button><button class="btn ghost" data-go="driver">Driver portal</button><button class="btn ghost" data-go="control">Control room</button></div>
+  <div class="grid">
+    <div class="card stat"><span>Ambulances live</span><b id="s-amb">0</b></div>
+    <div class="card stat"><span>Fire engines live</span><b id="s-fire">0</b></div>
+    <div class="card stat"><span>Alerts this session</span><b id="s-al">0</b></div>
+    <div class="card stat"><span>Last update</span><b id="s-up" style="font-size:18px">–</b></div>
+  </div>
+  <div class="grid">
+    <button class="card lnk" data-go="map"><span class="mu" style="color:var(--amb)">PUBLIC</span><h3>Commuter live map & safe route</h3><span class="mu">See vehicles live, get a route that avoids them, and a warning within 300 m.</span></button>
+    <button class="card lnk" data-go="driver"><span class="mu" style="color:var(--fire)">AMBULANCE & FIRE</span><h3>Emergency driver portal</h3><span class="mu">Share your live GPS and destination route with one tap.</span></button>
+    <button class="card lnk" data-go="control"><span class="mu" style="color:var(--warn)">AUTHORITIES</span><h3>Control room</h3><span class="mu">Fleet list, filters, and a live event stream.</span></button>
+  </div>
+</div></section>
+
+<section id="v-driver" class="page" hidden><div class="wrap" style="max-width:520px">
+  <div id="d-setup" class="card">
+    <h2>Emergency driver portal</h2>
+    <label for="d-name">Vehicle name</label><input id="d-name" placeholder="e.g. 108-CH-42" autocomplete="off">
+    <label for="d-type">Vehicle type</label><select id="d-type"><option value="ambulance">Ambulance</option><option value="fire">Fire engine</option></select>
+    <label for="d-key">Access key</label><input id="d-key" type="password" autocomplete="off">
+    <button class="btn" id="d-start" style="width:100%;padding:16px;font-size:17px">Start sharing location</button>
+  </div>
+  <div id="d-live" hidden>
+    <div class="card"><span class="chip"><span class="dot" id="d-dot"></span><b id="d-state">Starting…</b></span>
+      <div class="grid" style="grid-template-columns:repeat(3,1fr)">
+        <div class="stat"><span>Speed</span><b id="d-sp">0</b><span>km/h</span></div>
+        <div class="stat"><span>GPS accuracy</span><b id="d-acc">–</b><span>metres</span></div>
+        <div class="stat"><span>Connected</span><b id="d-t">0:00</b><span>min:sec</span></div>
+      </div><div class="mu" id="d-co"></div></div>
+    <div class="card" style="margin-top:12px"><h2>Route to the public</h2>
+      <input id="d-dest" placeholder="Hospital or incident address"><button class="btn ghost" id="d-route" style="width:100%">Show my route to the public</button>
+      <div id="d-msg" class="mu" role="status" style="margin-top:8px"></div></div>
+    <button class="btn red" id="d-stop" style="width:100%;padding:16px;font-size:17px;margin-top:12px">Stop sharing</button>
+  </div>
+</div></section>
+
+<div id="stage" hidden>
+  <div class="side" id="side-map">
+    <div class="card"><h2>Safe corridor planner</h2>
+      <div class="chips" id="mode"><button data-m="car" class="on">🚗 Car</button><button data-m="bike">🚲 Bike</button><button data-m="foot">🚶 Walk</button></div>
+      <input id="pfrom" placeholder="From (blank = my location)" aria-label="From"><input id="pto" placeholder="To, e.g. Marina Beach, Chennai" aria-label="To">
+      <button class="btn" id="pgo" style="width:100%">Find safe route</button><div id="pmsg" role="status" aria-live="polite" style="margin-top:8px"></div>
+      <button class="btn ok" id="startnav" style="width:100%;margin-top:8px" hidden>▶ Start journey</button>
+      <div class="mu" id="trafnote" style="margin-top:6px" hidden>Route colour shows modelled road speed (typical for this kind of road), not live traffic — free routing data has no live feed.</div></div>
+    <div id="alts"></div>
+    <div><h2>Emergency fleet nearby</h2><div id="fleet"></div></div>
+  </div>
+  <div class="side" id="side-ctl" hidden>
+    <div class="card"><h2>Fleet command</h2>
+      <input id="q" placeholder="Search vehicle name" aria-label="Search">
+      <div class="chips" id="fl"><button data-f="all" class="on">All</button><button data-f="ambulance">Ambulance</button><button data-f="fire">Fire</button></div>
+      <div id="clist"></div></div>
+    <div><h2>Live event stream</h2><div id="ev"></div></div>
+  </div>
+  <div id="mapwrap" style="position:relative;flex:1;min-width:0">
+    <div id="map" style="position:absolute;inset:0"></div>
+    <div id="navcard" class="card" hidden style="position:absolute;top:12px;left:12px;right:12px;z-index:500;display:flex;align-items:center;gap:12px">
+      <div id="nav-ic" style="font-size:30px">➡️</div>
+      <div style="flex:1;min-width:0">
+        <div id="nav-txt" style="font-weight:800;font-size:16px"></div>
+        <div class="mu" id="nav-sub"></div>
+      </div>
+      <div style="text-align:right">
+        <div id="nav-dist" style="font-weight:800;color:var(--ok);font-size:18px"></div>
+        <div class="mu" id="nav-eta"></div>
+      </div>
+      <button class="btn red" id="nav-end" style="padding:8px 10px">End</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal" hidden role="alertdialog" aria-modal="true"><div class="box">
+  <span class="bd bad">CRITICAL PROXIMITY (&lt;300 m)</span>
+  <h3>EMERGENCY VEHICLE APPROACHING!</h3><div class="mu" id="m-name"></div>
+  <div class="m3"><div><span class="mu">DISTANCE</span><b id="m-d">–</b></div><div><span class="mu">TIME</span><b id="m-t">–</b></div><div><span class="mu">SPEED</span><b id="m-s">–</b></div></div>
+  <div class="act">MOVE TO THE LEFT, SLOW DOWN AND LET IT PASS.</div>
+  <div class="row"><button class="btn red" id="m-ok">Path cleared / moved to left</button><button class="btn ghost" id="m-mute">Mute siren</button></div>
+</div></div>
+
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const CENTER=[13.0827,80.2707],FEED='/api/vehicles',POLL=3000,R_ALERT=300;
+const COL={fire:'#ef4444',ambulance:'#0ea5e9'},IC={fire:'🚒',ambulance:'🚑'},NM={fire:'Fire engine',ambulance:'Ambulance'};
+const map=L.map('map').setView(CENTER,12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(map);
+const layers={},prev={},spd={};let me=null,meM=null,vehicles=[],filt='all',qs='',alerts=0,snooze={},muted=false,tick=null,known=new Set();
+function dist(a,b){const R=6371000,t=x=>x*Math.PI/180,h=Math.sin(t(b[0]-a[0])/2)**2+Math.cos(t(a[0]))*Math.cos(t(b[0]))*Math.sin(t(b[1]-a[1])/2)**2;return 2*R*Math.asin(Math.sqrt(h));}
+const fmt=m=>m<1000?Math.round(m)+' m':(m/1000).toFixed(1)+' km';
+
+/* nav */
+function go(v){if(!['home','map','driver','control'].includes(v))v='home';
+  $('#v-home').hidden=v!=='home';$('#v-driver').hidden=v!=='driver';
+  const st=v==='map'||v==='control';$('#stage').hidden=!st;$('#side-map').hidden=v!=='map';$('#side-ctl').hidden=v!=='control';
+  $$('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  if(location.hash.slice(1)!==v)location.hash=v;if(st)setTimeout(()=>map.invalidateSize(),50);}
+$$('nav button').forEach(b=>b.onclick=()=>go(b.dataset.v));$$('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
+addEventListener('hashchange',()=>go(location.hash.slice(1)));
+
+/* events */
+function ev(t,c){const d=document.createElement('div');d.className=c||'';d.textContent=new Date().toLocaleTimeString()+'  '+t;$('#ev').prepend(d);while($('#ev').children.length>30)$('#ev').lastChild.remove();}
+
+/* render vehicles */
+function upsert(v){let l=layers[v.id];
+  if(!l){const icon=L.divIcon({className:'',iconSize:[30,30],iconAnchor:[15,15],html:`<div class="${v.type}" style="position:relative"><div class="pulse"></div><div class="pin">${IC[v.type]}</div></div>`});
+    l={marker:L.marker([v.lat,v.lng],{icon,zIndexOffset:1000}).addTo(map),corridor:L.polyline([],{color:COL[v.type],weight:26,opacity:.15,lineCap:'round'}).addTo(map),line:L.polyline([],{color:COL[v.type],weight:4,dashArray:'8 8'}).addTo(map)};layers[v.id]=l;}
+  l.marker.setLatLng([v.lat,v.lng]).bindTooltip(v.name);l.corridor.setLatLngs(v.route);l.line.setLatLngs(v.route);}
+function render(list){
+  const ids=new Set(list.map(v=>v.id));
+  Object.keys(layers).forEach(id=>{if(!ids.has(id)){['marker','corridor','line'].forEach(k=>map.removeLayer(layers[id][k]));delete layers[id];}});
+  known.forEach(id=>{if(!ids.has(id))ev((vehicles.find(v=>v.id===id)||{name:id}).name+' went offline','r')});
+  list.forEach(v=>{if(!known.has(v.id))ev(v.name+' connected and is sharing live location','g');
+    const t=Date.now(),p=prev[v.id];if(p&&t-p.t>=1500){const s=dist([p.lat,p.lng],[v.lat,v.lng])/((t-p.t)/1000)*3.6;spd[v.id]=Math.min(180,.6*(spd[v.id]||0)+.4*s);prev[v.id]={lat:v.lat,lng:v.lng,t};}else if(!p)prev[v.id]={lat:v.lat,lng:v.lng,t};
+    upsert(v);});
+  known=ids;vehicles=list;
+  $('#ldot').className='dot on-dot';$('#status').textContent='Live · '+new Date().toLocaleTimeString();
+  $('#s-amb').textContent=list.filter(v=>v.type==='ambulance').length;$('#s-fire').textContent=list.filter(v=>v.type==='fire').length;$('#s-up').textContent=new Date().toLocaleTimeString();
+  const row=v=>{const d=me?fmt(dist(me,[v.lat,v.lng])):'';return `<button class="veh ${v.type}" data-f="${esc(v.id)}"><span class="ic">${IC[v.type]}</span><div><b>${esc(v.name)}</b><span class="mu">${Math.round(spd[v.id]||0)} km/h</span></div><span class="tag ${v.type}">${NM[v.type].toUpperCase()}</span><b>${d}</b></button>`};
+  const sorted=[...list].sort((a,b)=>me?dist(me,[a.lat,a.lng])-dist(me,[b.lat,b.lng]):0);
+  $('#fleet').innerHTML=sorted.map(row).join('')||'<div class="mu">No emergency vehicles active right now.</div>';
+  $('#clist').innerHTML=list.filter(v=>(filt==='all'||v.type===filt)&&v.name.toLowerCase().includes(qs)).map(row).join('')||'<div class="mu">No vehicles match.</div>';
+  $$('[data-f].veh').forEach(b=>b.onclick=()=>{const l=layers[b.dataset.f];if(l){go(location.hash==='#control'?'control':'map');map.flyTo(l.marker.getLatLng(),16);}});
+  checkNear();evaluate();}
+$$('#fl button').forEach(b=>b.onclick=()=>{filt=b.dataset.f;$$('#fl button').forEach(x=>x.classList.toggle('on',x===b));render(vehicles)});
+$('#q').oninput=e=>{qs=e.target.value.toLowerCase();render(vehicles)};
+
+/* proximity alert */
+function beep(){if(!muted){try{window.actx=window.actx||new AudioContext();[660,880].forEach((f,i)=>{const o=actx.createOscillator(),g=actx.createGain();o.frequency.value=f;g.gain.value=.08;o.connect(g);g.connect(actx.destination);o.start(actx.currentTime+i*.25);o.stop(actx.currentTime+i*.25+.22)})}catch(e){}}navigator.vibrate&&navigator.vibrate([300,150,300]);}
+function showAlert(name,d,sec,kmh){$('#m-name').textContent=name;$('#m-d').textContent=fmt(d);$('#m-t').textContent=sec?'~'+sec+' s':'–';$('#m-s').textContent=Math.round(kmh)+' km/h';
+  if($('#modal').hidden){alerts++;$('#s-al').textContent=alerts;ev('Proximity alert: '+name+' '+fmt(d)+' away','w');$('#modal').hidden=false;beep();tick=setInterval(beep,3000);}}
+function closeAlert(){$('#modal').hidden=true;clearInterval(tick);}
+$('#m-ok').onclick=()=>{Object.keys(layers).forEach(id=>snooze[id]=Date.now()+60000);closeAlert()};
+$('#m-mute').onclick=()=>{muted=!muted;$('#m-mute').textContent=muted?'Unmute siren':'Mute siren'};
+$('#test').onclick=()=>showAlert('Ambulance (test) · high speed',250,16,68);
+function ahead(v){let i=0,b=1e9;v.route.forEach((p,k)=>{const d=dist([v.lat,v.lng],p);if(d<b){b=d;i=k}});return v.route.slice(i)}
+function checkNear(){const bn=$('#bn');if(!me){bn.hidden=true;return;}
+  let best=null;vehicles.forEach(v=>{const near=ahead(v).some(p=>dist(me,p)<R_ALERT);if(near){const d=dist(me,[v.lat,v.lng]);if(!best||d<best.d)best={v,d}}});
+  if(!best){bn.hidden=true;return;}
+  const kmh=spd[best.v.id]||0,sec=kmh>5?Math.round(best.d/(kmh/3.6)):0;
+  bn.hidden=false;bn.textContent='Give way: '+best.v.name+' is on your road ('+fmt(best.d)+' away). Move to the side and let it pass.';
+  if((snooze[best.v.id]||0)<Date.now()&&best.d<R_ALERT)showAlert(best.v.name,best.d,sec,kmh);}
+if(navigator.geolocation)navigator.geolocation.watchPosition(p=>{me=[p.coords.latitude,p.coords.longitude];
+  if(!meM)meM=L.circleMarker(me,{radius:8,color:'#fff',weight:3,fillColor:'#2dd4bf',fillOpacity:1}).addTo(map).bindTooltip('You');else meM.setLatLng(me);checkNear();
+  if(nav){map.panTo(me);updateNav()}},()=>{},{enableHighAccuracy:true});
+
+/* safe route planner */
+const PROF={car:{url:'https://routing.openstreetmap.de/routed-car/route/v1/driving/',fallback:'https://router.project-osrm.org/route/v1/driving/',alt:true},
+            bike:{url:'https://routing.openstreetmap.de/routed-bike/route/v1/bike/',fallback:null,alt:false},
+            foot:{url:'https://routing.openstreetmap.de/routed-foot/route/v1/foot/',fallback:null,alt:false}};
+let mode='car';
+$$('#mode button').forEach(b=>b.onclick=()=>{mode=b.dataset.m;$$('#mode button').forEach(x=>x.classList.toggle('on',x===b));if(plan)findRoute()});
+let plan=null,pl=null,lastPick=-1,lastEval=0;
+const pm=(t,c)=>{const e=$('#pmsg');e.textContent=t;e.className=c||''};
+async function geocode(q){const g=await(await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(q))).json();if(!g[0])throw new Error('nf');return[parseFloat(g[0].lat),parseFloat(g[0].lon)]}
+function densify(pts,st){const o=[];for(let i=0;i<pts.length-1;i++){const a=pts[i],b=pts[i+1],n=Math.max(1,Math.round(dist(a,b)/st));for(let k=0;k<n;k++)o.push([a[0]+(b[0]-a[0])*k/n,a[1]+(b[1]-a[1])*k/n])}if(pts.length)o.push(pts[pts.length-1]);return o}
+function conflicts(route,vs){const u=densify(route,20),h=[];vs.forEach(v=>{if(!v.route||!v.route.length)return;const vr=densify([[v.lat,v.lng],...ahead(v)],20);let n=0;
+  for(const p of u){for(const q of vr){if(Math.abs(p[0]-q[0])<.0006&&Math.abs(p[1]-q[1])<.0006&&dist(p,q)<35){n++;break}}}if(n>=8)h.push({v,n})});return h}
+async function routeFetch(prof,a,b){const q=`${a[1]},${a[0]};${b[1]},${b[0]}?overview=full&geometries=geojson&steps=true&annotations=true${prof.alt?'&alternatives=3':''}`;
+  try{const j=await(await fetch(prof.url+q)).json();if(j.routes&&j.routes.length)return j;throw new Error('empty')}
+  catch(e){if(prof.fallback){const j=await(await fetch(prof.fallback+q)).json();if(j.routes&&j.routes.length)return j}throw new Error('route')}}
+function speedColor(ratio){return ratio>.7?'#2dd4bf':ratio>.4?'#fbbf24':'#ef4444'}
+function coloredLayer(route){
+  const leg=route.legs&&route.legs[0],ann=leg&&leg.annotation;
+  if(!ann||!ann.duration){return L.polyline(route.c,{color:'#2dd4bf',weight:6,opacity:.9})}
+  const speeds=ann.distance.map((d,i)=>ann.duration[i]>0?d/ann.duration[i]:0),max=Math.max(...speeds,.01);
+  const g=L.layerGroup();for(let i=0;i<route.c.length-1;i++){const s=speeds[i]||0;g.addLayer(L.polyline([route.c[i],route.c[i+1]],{color:speedColor(s/max),weight:6,opacity:.9}))}return g}
+function instrText(st){const m=st.maneuver,nm=st.name||'the road';
+  const mod={left:'left','sharp left':'sharp left','slight left':'slight left',right:'right','sharp right':'sharp right','slight right':'slight right',uturn:'a U-turn',straight:'straight'}[m.modifier]||'';
+  if(m.type==='depart')return'Head out on '+nm;
+  if(m.type==='arrive')return'You have arrived';
+  if(m.type==='turn')return'Turn '+mod+' onto '+nm;
+  if(m.type==='new name'||m.type==='continue')return'Continue onto '+nm;
+  if(m.type==='merge')return'Merge onto '+nm;
+  if(m.type==='fork')return'Keep '+(mod||'ahead')+' onto '+nm;
+  if(m.type==='roundabout'||m.type==='rotary')return'At the roundabout, take the exit onto '+nm;
+  if(m.type==='end of road')return'Turn '+mod+' onto '+nm;
+  if(m.type==='on ramp'||m.type==='off ramp')return'Take the ramp onto '+nm;
+  return 'Continue onto '+nm}
+async function findRoute(){const f=$('#pfrom').value.trim(),t=$('#pto').value.trim();
+  if(!t){pm('Type a destination.');return}if(!f&&!me){pm('Allow location access or type a starting point.');return}
+  pm('Finding routes…');$('#startnav').hidden=true;
+  try{const a=f?await geocode(f):me,b=await geocode(t);
+    const j=await routeFetch(PROF[mode],a,b);
+    plan={manual:null,alts:j.routes.map(r=>({c:r.geometry.coordinates.map(x=>[x[1],x[0]]),min:r.duration/60,km:r.distance/1000,legs:r.legs,steps:r.legs[0].steps}))};
+    lastPick=-1;evaluate(true);map.fitBounds(L.polyline(plan.alts[0].c).getBounds(),{padding:[30,30]});
+    $('#trafnote').hidden=false;
+  }catch(e){pm(e.message==='nf'?'Place not found. Try a fuller address, e.g. Marina Beach, Chennai.':'No '+mode+' route available here. Try car.','bad-t')}}
+function evaluate(force){if(!plan)return;const now=Date.now();if(!force&&now-lastEval<3000)return;lastEval=now;
+  const sc=plan.alts.map((r,i)=>({i,h:conflicts(r.c,vehicles)}));let auto=sc.find(s=>!s.h.length);const clear=!!auto;
+  if(!auto)auto=sc.slice().sort((x,y)=>x.h.reduce((t,o)=>t+o.n,0)-y.h.reduce((t,o)=>t+o.n,0))[0];
+  const sel=plan.manual!==null?plan.manual:auto.i,cur=sc[sel],ok=!cur.h.length,r=plan.alts[sel];
+  if(pl)map.removeLayer(pl);pl=coloredLayer(r);pl.addTo(map);
+  $('#startnav').hidden=false;
+  $('#alts').innerHTML=sc.map(s=>{const a=plan.alts[s.i];return `<button class="alt ${s.i===sel?'sel':''}" data-i="${s.i}"><span class="bd ${s.h.length?'bad':'clear'}">${s.h.length?'EMERGENCY VEHICLE AHEAD':(s.i===auto.i&&clear?'RECOMMENDED · CLEAR':'CLEAR')}</span> <b style="float:right">${Math.round(a.min)} min</b><div class="mu">${PROF[mode]===PROF.car?'🚗':mode==='bike'?'🚲':'🚶'} Route ${s.i+1} · ${a.km.toFixed(1)} km${s.h.length?' · '+esc(s.h.map(o=>o.v.name).join(', ')):''}</div></button>`}).join('');
+  $$('.alt').forEach(b=>b.onclick=()=>{plan.manual=+b.dataset.i;evaluate(true)});
+  if(sel!==lastPick||force){
+    if(ok&&sel===0)pm('Your route is clear. About '+Math.round(r.min)+' min.','ok-t');
+    else if(ok){pm('Emergency vehicle on your usual route. You have been diverted (about '+Math.round(r.min)+' min).','dv');if(plan.manual===null)ev('Route diverted around an emergency vehicle','w')}
+    else pm('No clear route. '+cur.h.map(o=>o.v.name).join(', ')+' will use this road. Drive carefully and give way.','bad-t');
+    lastPick=sel}}
+$('#pgo').onclick=findRoute;
+
+/* turn-by-turn navigation */
+let nav=null;
+function startNav(){if(!plan)return;const sel=plan.manual!==null?plan.manual:0,r=plan.alts[sel];
+  if(!r.steps||!r.steps.length){pm('Turn-by-turn is not available for this route.','bad-t');return}
+  nav={steps:r.steps,idx:0,km:r.km,min:r.min,mode};
+  $('#navcard').hidden=false;map.setZoom(mode==='foot'?18:mode==='bike'?17:16);
+  if(me)map.panTo(me);
+  updateNav();}
+function endNav(){nav=null;$('#navcard').hidden=true}
+$('#startnav').onclick=startNav;$('#nav-end').onclick=endNav;
+function updateNav(){if(!nav||!me)return;
+  while(nav.idx<nav.steps.length-1){const loc=nav.steps[nav.idx].maneuver.location,p=[loc[1],loc[0]];
+    const thresh=nav.mode==='foot'?15:nav.mode==='bike'?20:30;
+    if(dist(me,p)<thresh)nav.idx++;else break}
+  const st=nav.steps[nav.idx],loc=st.maneuver.location,p=[loc[1],loc[0]],d=dist(me,p);
+  $('#nav-txt').textContent=instrText(st);
+  const nxt=nav.steps[nav.idx+1];$('#nav-sub').textContent=nxt?'Then: '+instrText(nxt):'';
+  $('#nav-dist').textContent=fmt(d);
+  const rem=nav.steps.slice(nav.idx).reduce((t,s)=>t+s.distance,0),speedKmh=(nav.km/(nav.min/60))||15;
+  $('#nav-eta').textContent=Math.max(1,Math.round(rem/1000/speedKmh*60))+' min left';
+  const ic={'turn-left':'⬅️','turn-right':'➡️','turn-straight':'⬆️','turn-uturn':'↩️',depart:'📍',arrive:'🏁'};
+  const key=st.maneuver.type==='turn'?('turn-'+(st.maneuver.modifier||'').replace('slight ','').replace('sharp ','')):st.maneuver.type;
+  $('#nav-ic').textContent=ic[key]||'⬆️';
+  if(st.maneuver.type==='arrive'&&d<20){$('#nav-txt').textContent='You have arrived';setTimeout(endNav,4000)}}
+
+/* driver portal */
+const sv={g:k=>{try{return localStorage.getItem(k)}catch(e){return null}},s:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
+const vid=sv.g('vid')||('v'+Math.random().toString(36).slice(2,10));sv.s('vid',vid);
+$('#d-name').value=sv.g('dn')||'';$('#d-type').value=sv.g('dt')||'ambulance';$('#d-key').value=sv.g('dk')||'';
+let wid=null,last=null,route=null,sentR=true,lastS=0,busy=false,t0=0,wl=null;
+const dm=t=>$('#d-msg').textContent=t;
+async function post(path,body){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','x-key':$('#d-key').value},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||r.status)}
+async function push(){if(!last||busy||Date.now()-lastS<2000)return;busy=true;lastS=Date.now();
+  const p={id:vid,type:$('#d-type').value,name:$('#d-name').value.trim()||vid,lat:last.lat,lng:last.lng};if(!sentR&&route)p.route=route;
+  try{await post('/api/update',p);if(route)sentR=true;$('#d-state').textContent='Sharing live location';$('#d-dot').className='dot on-dot'}
+  catch(e){$('#d-state').textContent=String(e.message).includes('bad key')?'Wrong access key':'No connection, retrying…';$('#d-dot').className='dot'}busy=false}
+async function dStart(){if(!navigator.geolocation){alert('This device does not support location.');return}if(!$('#d-key').value){alert('Enter the access key.');return}
+  sv.s('dn',$('#d-name').value);sv.s('dt',$('#d-type').value);sv.s('dk',$('#d-key').value);
+  $('#d-setup').hidden=true;$('#d-live').hidden=false;$('#d-state').textContent='Waiting for GPS…';t0=Date.now();
+  wid=navigator.geolocation.watchPosition(p=>{last={lat:p.coords.latitude,lng:p.coords.longitude};$('#d-co').textContent=last.lat.toFixed(5)+', '+last.lng.toFixed(5);
+    $('#d-acc').textContent=Math.round(p.coords.accuracy);$('#d-sp').textContent=p.coords.speed?Math.round(p.coords.speed*3.6):0;push()},
+    e=>{$('#d-state').textContent=e.code===1?'Location permission denied. Allow it in browser settings.':'GPS unavailable'},{enableHighAccuracy:true,maximumAge:1000,timeout:15000});
+  setInterval(push,3000);setInterval(()=>{const s=Math.floor((Date.now()-t0)/1000);$('#d-t').textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0')},1000);
+  try{wl=await navigator.wakeLock.request('screen')}catch(e){}}
+async function dStop(){if(wid!==null)navigator.geolocation.clearWatch(wid);try{await post('/api/stop',{id:vid})}catch(e){}if(wl)try{wl.release()}catch(e){}location.reload()}
+async function dRoute(){if(!last){dm('Waiting for GPS first.');return}const q=$('#d-dest').value.trim();if(!q){dm('Type a destination.');return}dm('Finding route…');
+  try{const b=await geocode(q),j=await(await fetch(`https://router.project-osrm.org/route/v1/driving/${last.lng},${last.lat};${b[1]},${b[0]}?overview=full&geometries=geojson`)).json();
+    route=j.routes[0].geometry.coordinates.map(c=>[c[1],c[0]]);sentR=false;lastS=0;dm('Route is now visible to the public.');push()}
+  catch(e){dm(e.message==='nf'?'Destination not found. Try a fuller address.':'Could not get the route.')}}
+$('#d-start').onclick=dStart;$('#d-stop').onclick=dStop;$('#d-route').onclick=dRoute;
+
+/* feed */
+async function poll(){try{render(await(await fetch(FEED)).json())}catch(e){$('#ldot').className='dot';$('#status').textContent='Reconnecting…'}}
+poll();setInterval(poll,POLL);go(location.hash.slice(1)||'home');
+</script></body></html>
